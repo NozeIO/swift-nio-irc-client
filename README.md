@@ -1,10 +1,10 @@
-# SwiftNIO IRC
+# SwiftNIO IRC Client
 
 ![Swift4](https://img.shields.io/badge/swift-4-blue.svg)
 ![iOS](https://img.shields.io/badge/os-iOS-green.svg?style=flat)
 ![macOS](https://img.shields.io/badge/os-macOS-green.svg?style=flat)
 ![tuxOS](https://img.shields.io/badge/os-tuxOS-green.svg?style=flat)
-![Travis](https://travis-ci.org/NozeIO/swift-nio-irc.svg?branch=develop)
+![Travis](https://travis-ci.org/NozeIO/swift-nio-irc-client.svg?branch=develop)
 
 SwiftNIO-IRC is a Internet Relay Chat 
 [protocol implementation](Sources/NIOIRC) for
@@ -12,8 +12,10 @@ SwiftNIO-IRC is a Internet Relay Chat
 and a simple 
 [IRC client](Sources/IRC).
 
-This module contains the protocol implementation and the client, we also
+This module contains a simple IRC client library. We also
 provide:
+- [swift-nio-irc](https://github.com/SwiftNIOExtras/swift-nio-irc) -
+  the raw Swift NIO IRC protocol implementation
 - [swift-nio-irc-webclient](https://github.com/NozeIO/swift-nio-irc-webclient) -
   a simple IRC webclient + WebSocket gateway based on this module,
 - [swift-nio-irc-eliza](https://github.com/NozeIO/swift-nio-irc-eliza) -
@@ -42,38 +44,14 @@ import PackageDescription
 let package = Package(
     name: "IRCTests",
     dependencies: [
-        .package(url: "https://github.com/NozeIO/swift-nio-irc.git",
-                 from: "0.5.0")
+        .package(url: "https://github.com/NozeIO/swift-nio-irc-client.git",
+                 from: "0.6.0")
     ],
     targets: [
-        .target(name: "MyProtocolTool",
-                dependencies: [ "NIOIRC" ]),
         .target(name: "MyIRCClient",
                 dependencies: [ "IRC" ])
     ]
 )
-```
-
-
-## Using the SwiftNIO IRC protocol handler
-
-The IRC protocol is implemented as a regular
-`ChannelHandler`, similar to `NIOHTTP1`.
-It takes incoming `ByteBuffer` data, parses that, and emits `IRCMessage`
-items.
-Same the other way around, the user writes `IRCReply`
-objects, and the handler renders such into `ByteBuffer`s.
-
-To add the IRC handler to a NIO Channel pipeline:
-
-```swift
-import NIOIRC
-
-bootstrap.channelInitializer { channel in
-    channel.pipeline
-        .add(handler: IRCChannelHandler())
-        .then { ... }
-}
 ```
 
 
