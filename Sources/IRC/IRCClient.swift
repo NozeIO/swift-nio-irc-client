@@ -99,13 +99,13 @@ open class IRCClient : IRCClientMessageTarget {
     
     var description : String {
       switch self {
-      case .disconnected:                return "disconnected"
-      case .connecting:                  return "connecting..."
-      case .registering(_, let nick, _): return "registering<\(nick)>..."
-      case .registered (_, let nick, _): return "registered<\(nick)>"
-      case .error      (let error):      return "error<\(error)>"
-      case .requestedQuit:               return "quitting..."
-      case .quit:                        return "quit"
+        case .disconnected:                return "disconnected"
+        case .connecting:                  return "connecting..."
+        case .registering(_, let nick, _): return "registering<\(nick)>..."
+        case .registered (_, let nick, _): return "registered<\(nick)>"
+        case .error      (let error):      return "error<\(error)>"
+        case .requestedQuit:               return "quitting..."
+        case .quit:                        return "quit"
       }
     }
   }
@@ -131,17 +131,35 @@ open class IRCClient : IRCClientMessageTarget {
     _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
     
     _ = bootstrap.channelInitializer { [weak self] channel in
-      channel.pipeline
-        .add(name: "de.zeezide.nio.irc.protocol",
-             handler: IRCChannelHandler())
-        .thenThrowing { [weak self] in
-          guard let me = self else { throw Error.internalInconsistency }
-          
-          let handler = Handler(client: me)
-          _ = channel.pipeline.add(name: "de.zeezide.nio.irc.client",
-                                   handler: handler)
-        }
+      #if swift(>=5)
+        return channel.pipeline
+          .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
+          .flatMap { [weak self] _ in
+            guard let me = self else {
+              let error = channel.eventLoop.makePromise(of: Void.self)
+              error.fail(Error.internalInconsistency)
+              return error.futureResult
+            }
+            return channel.pipeline
+              .addHandler(Handler(client: me),
+                          name: "de.zeezide.nio.irc.client")
+          }
+      #else
+        return channel.pipeline
+          .add(name: "de.zeezide.nio.irc.protocol",
+               handler: IRCChannelHandler())
+          .thenThrowing { [weak self] in
+            guard let me = self else { throw Error.internalInconsistency }
+            
+            let handler = Handler(client: me)
+            _ = channel.pipeline.add(name: "de.zeezide.nio.irc.client",
+                                     handler: handler)
+          }
+      #endif
     }
+  }
+  deinit {
+    _ = channel?.close(mode: .all)
   }
   
   
@@ -401,7 +419,11 @@ open class IRCClient : IRCClientMessageTarget {
   {
     // TBD: this looks a little more difficult than necessary.
     guard let channel = channel else {
-      promise?.fail(error: Error.stopped)
+      #if swift(>=5)
+        promise?.fail(Error.stopped)
+      #else
+        promise?.fail(error: Error.stopped)
+      #endif
       return
     }
     
@@ -413,7 +435,11 @@ open class IRCClient : IRCClientMessageTarget {
     
     let count = messages.count
     if count == 0 {
-      promise?.succeed(result: ())
+      #if swift(>=5)
+        promise?.succeed(())
+      #else
+        promise?.succeed(result: ())
+      #endif
       return
     }
     if count == 1 {
@@ -427,11 +453,17 @@ open class IRCClient : IRCClientMessageTarget {
       return channel.flush()
     }
     
-    EventLoopFuture<Void>
-      .andAll(messages.map { channel.write($0) },
-              eventLoop: promise.futureResult.eventLoop)
-      .cascade(promise: promise)
-    
+    #if swift(>=5)
+      EventLoopFuture<Void>
+        .andAllSucceed(messages.map { channel.write($0) },
+                       on: promise.futureResult.eventLoop)
+        .cascade(to: promise)
+    #else
+      EventLoopFuture<Void>
+        .andAll(messages.map { channel.write($0) },
+                eventLoop: promise.futureResult.eventLoop)
+        .cascade(promise: promise)
+    #endif
     channel.flush()
   }
 }

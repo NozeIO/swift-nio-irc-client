@@ -88,7 +88,7 @@ open class IRCClientOptions : ConnectOptions {
     super.appendToDescription(&ms)
     ms += " \(nickname)"
     ms += " \(userInfo)"
-    if password != nil                   { ms += " pwd"              }
-    if let retryStrategy = retryStrategy { ms += " \(retryStrategy)" }
+    if password      != nil { ms += " pwd"                  }
+    if retryStrategy != nil { ms += " has-retryStrategy-cb" }
   }
 }
