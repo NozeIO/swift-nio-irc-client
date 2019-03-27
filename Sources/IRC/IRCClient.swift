@@ -145,7 +145,7 @@ open class IRCClient : IRCClientMessageTarget {
                           name: "de.zeezide.nio.irc.client")
           }
       #else
-        channel.pipeline
+        return channel.pipeline
           .add(name: "de.zeezide.nio.irc.protocol",
                handler: IRCChannelHandler())
           .thenThrowing { [weak self] in
