@@ -131,20 +131,33 @@ open class IRCClient : IRCClientMessageTarget {
     _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
     
     _ = bootstrap.channelInitializer { [weak self] channel in
-      channel.pipeline
-        .add(name: "de.zeezide.nio.irc.protocol",
-             handler: IRCChannelHandler())
-        .thenThrowing { [weak self] in
-          guard let me = self else { throw Error.internalInconsistency }
-          
-          let handler = Handler(client: me)
-          _ = channel.pipeline.add(name: "de.zeezide.nio.irc.client",
-                                   handler: handler)
-        }
+      #if swift(>=5)
+        channel.pipeline
+          .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
+          .whenSuccess {
+            guard let me = self else {
+              assertionFailure("client object is gone ...")
+              return
+            }
+            _ = channel.pipeline.addHandler(Handler(client: me),
+                                            name: "de.zeezide.nio.irc.client")
+          }
+      #else
+        channel.pipeline
+          .add(name: "de.zeezide.nio.irc.protocol",
+               handler: IRCChannelHandler())
+          .thenThrowing { [weak self] in
+            guard let me = self else { throw Error.internalInconsistency }
+            
+            let handler = Handler(client: me)
+            _ = channel.pipeline.add(name: "de.zeezide.nio.irc.client",
+                                     handler: handler)
+          }
+      #endif
     }
   }
   deinit {
-    channel?.close(mode: .all)
+    _ = channel?.close(mode: .all)
   }
   
   
