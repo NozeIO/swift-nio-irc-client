@@ -419,7 +419,11 @@ open class IRCClient : IRCClientMessageTarget {
   {
     // TBD: this looks a little more difficult than necessary.
     guard let channel = channel else {
-      promise?.fail(error: Error.stopped)
+      #if swift(>=5)
+        promise?.fail(Error.stopped)
+      #else
+        promise?.fail(error: Error.stopped)
+      #endif
       return
     }
     
@@ -431,7 +435,11 @@ open class IRCClient : IRCClientMessageTarget {
     
     let count = messages.count
     if count == 0 {
-      promise?.succeed(result: ())
+      #if swift(>=5)
+        promise?.succeed(())
+      #else
+        promise?.succeed(result: ())
+      #endif
       return
     }
     if count == 1 {
@@ -445,11 +453,17 @@ open class IRCClient : IRCClientMessageTarget {
       return channel.flush()
     }
     
-    EventLoopFuture<Void>
-      .andAll(messages.map { channel.write($0) },
-              eventLoop: promise.futureResult.eventLoop)
-      .cascade(promise: promise)
-    
+    #if swift(>=5)
+      EventLoopFuture<Void>
+        .andAllSucceed(messages.map { channel.write($0) },
+                       on: promise.futureResult.eventLoop)
+        .cascade(to: promise)
+    #else
+      EventLoopFuture<Void>
+        .andAll(messages.map { channel.write($0) },
+                eventLoop: promise.futureResult.eventLoop)
+        .cascade(promise: promise)
+    #endif
     channel.flush()
   }
 }
