@@ -11,7 +11,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-nio.git", 
                  from: "2.0.0"),
         .package(url: "https://github.com/SwiftNIOExtras/swift-nio-irc.git",
-                 from: "0.6.1")
+                 from: "0.7.0")
     ],
     targets: [
         .target(name: "IRC", dependencies: [ "NIOIRC" ])
