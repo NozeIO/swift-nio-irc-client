@@ -132,15 +132,17 @@ open class IRCClient : IRCClientMessageTarget {
     
     _ = bootstrap.channelInitializer { [weak self] channel in
       #if swift(>=5)
-        channel.pipeline
+        return channel.pipeline
           .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
-          .whenSuccess {
+          .flatMap { [weak self] _ in
             guard let me = self else {
-              assertionFailure("client object is gone ...")
-              return
+              let error = channel.eventLoop.makePromise(of: Void.self)
+              error.fail(Error.internalInconsistency)
+              return error.futureResult
             }
-            _ = channel.pipeline.addHandler(Handler(client: me),
-                                            name: "de.zeezide.nio.irc.client")
+            return channel.pipeline
+              .addHandler(Handler(client: me),
+                          name: "de.zeezide.nio.irc.client")
           }
       #else
         channel.pipeline
