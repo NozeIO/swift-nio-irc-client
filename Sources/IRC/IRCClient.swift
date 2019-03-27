@@ -99,13 +99,13 @@ open class IRCClient : IRCClientMessageTarget {
     
     var description : String {
       switch self {
-      case .disconnected:                return "disconnected"
-      case .connecting:                  return "connecting..."
-      case .registering(_, let nick, _): return "registering<\(nick)>..."
-      case .registered (_, let nick, _): return "registered<\(nick)>"
-      case .error      (let error):      return "error<\(error)>"
-      case .requestedQuit:               return "quitting..."
-      case .quit:                        return "quit"
+        case .disconnected:                return "disconnected"
+        case .connecting:                  return "connecting..."
+        case .registering(_, let nick, _): return "registering<\(nick)>..."
+        case .registered (_, let nick, _): return "registered<\(nick)>"
+        case .error      (let error):      return "error<\(error)>"
+        case .requestedQuit:               return "quitting..."
+        case .quit:                        return "quit"
       }
     }
   }
@@ -142,6 +142,9 @@ open class IRCClient : IRCClientMessageTarget {
                                    handler: handler)
         }
     }
+  }
+  deinit {
+    channel?.close(mode: .all)
   }
   
   
