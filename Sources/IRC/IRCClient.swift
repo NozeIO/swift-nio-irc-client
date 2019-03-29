@@ -328,7 +328,7 @@ open class IRCClient : IRCClientMessageTarget {
   
   // MARK: - Handler Delegate
   
-  func handlerDidDisconnect(_ ctx: ChannelHandlerContext) { // Q: own
+  func handlerDidDisconnect(_ context: ChannelHandlerContext) { // Q: own
     switch state {
       case .error, .quit: break // already handled
       case .registering, .connecting:
@@ -370,7 +370,7 @@ open class IRCClient : IRCClientMessageTarget {
   }
   
   func handlerCaughtError(_ error: Swift.Error,
-                          in ctx: ChannelHandlerContext) // Q: own
+                          in context: ChannelHandlerContext) // Q: own
   {
     retryInfo.lastSocketError = error
     state = .error(.channelError(error))
@@ -391,21 +391,39 @@ open class IRCClient : IRCClientMessageTarget {
       self.client = client
     }
     
-    func channelActive(ctx: ChannelHandlerContext) {
+    func channelActive(context: ChannelHandlerContext) {
     }
-    func channelInactive(ctx: ChannelHandlerContext) {
-      client.handlerDidDisconnect(ctx)
+    func channelInactive(context: ChannelHandlerContext) {
+      client.handlerDidDisconnect(context)
     }
     
-    func channelRead(ctx: ChannelHandlerContext, data: NIOAny) {
+    func channelRead(context: ChannelHandlerContext, data: NIOAny) {
       let value = unwrapInboundIn(data)
       client.handlerHandleResult(value)
     }
     
-    public func errorCaught(ctx: ChannelHandlerContext, error: Error) {
-      self.client.handlerCaughtError(error, in: ctx)
-      _ = ctx.close(promise: nil)
+    func errorCaught(context: ChannelHandlerContext, error: Error) {
+      self.client.handlerCaughtError(error, in: context)
+      _ = context.close(promise: nil)
     }
+    
+    #if swift(>=5)
+    #else // NIO 1 API shims
+      func channelActive(ctx context: ChannelHandlerContext) {
+        channelActive(context: context)
+      }
+      func channelInactive(ctx context: ChannelHandlerContext) {
+        channelInactive(context: context)
+      }
+    
+      func channelRead(ctx context: ChannelHandlerContext, data: NIOAny) {
+        channelRead(context: context, data: data)
+      }
+    
+      func errorCaught(ctx context: ChannelHandlerContext, error: Error) {
+        errorCaught(context: context, error: error)
+      }
+    #endif
   }
 
   
