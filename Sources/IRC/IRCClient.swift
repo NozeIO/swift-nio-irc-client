@@ -15,6 +15,10 @@
 import NIO
 import NIOIRC
 
+#if canImport(NIOTransportServices)
+  import NIOTransportServices
+#endif
+
 /**
  * A simple IRC client based on SwiftNIO.
  *
@@ -119,43 +123,59 @@ open class IRCClient : IRCClientMessageTarget {
     return "\(nick.stringValue)!~\(info.username)@\(host)"
   }
 
-  private let bootstrap : ClientBootstrap
+  private let bootstrap : NIOClientTCPBootstrapProtocol
   
   public init(options: IRCClientOptions) {
     self.options = options
     
-    self.eventLoop = options.eventLoopGroup.next()
-    
-    bootstrap = ClientBootstrap(group: self.eventLoop)
-    
-    _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
-    
-    _ = bootstrap.channelInitializer { [weak self] channel in
-      #if swift(>=5)
-        return channel.pipeline
-          .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
-          .flatMap { [weak self] _ in
-            guard let me = self else {
-              let error = channel.eventLoop.makePromise(of: Void.self)
-              error.fail(Error.internalInconsistency)
-              return error.futureResult
-            }
-            return channel.pipeline
-              .addHandler(Handler(client: me),
-                          name: "de.zeezide.nio.irc.client")
+    let eventLoop = options.eventLoopGroup.next()
+    self.eventLoop = eventLoop
+  
+    // what a mess :-)
+    var defaultBootstrap : NIOClientTCPBootstrapProtocol {
+      return ClientBootstrap(group: eventLoop)
+    }
+    #if canImport(NIOTransportServices)
+      #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+        if #available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
+          if options.eventLoopGroup is NIOTSEventLoopGroup {
+            self.bootstrap = NIOTSConnectionBootstrap(group: eventLoop)
           }
+          else {
+            self.bootstrap = defaultBootstrap
+          }
+        }
+        else {
+          self.bootstrap = defaultBootstrap
+        }
       #else
-        return channel.pipeline
-          .add(name: "de.zeezide.nio.irc.protocol",
-               handler: IRCChannelHandler())
-          .thenThrowing { [weak self] in
-            guard let me = self else { throw Error.internalInconsistency }
-            
-            let handler = Handler(client: me)
-            _ = channel.pipeline.add(name: "de.zeezide.nio.irc.client",
-                                     handler: handler)
-          }
+        self.bootstrap = defaultBootstrap
       #endif
+    #else
+      self.bootstrap = defaultBootstrap
+    #endif
+
+    switch self.bootstrap {
+      case let bootstrap as ClientBootstrap:
+        _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
+        
+        _ = bootstrap.channelInitializer { [weak self] channel in
+          return channel.pipeline
+            .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
+            .flatMap { [weak self] _ in
+              guard let me = self else {
+                let error = channel.eventLoop.makePromise(of: Void.self)
+                error.fail(Error.internalInconsistency)
+                return error.futureResult
+              }
+              return channel.pipeline
+                .addHandler(Handler(client: me),
+                            name: "de.zeezide.nio.irc.client")
+            }
+        }
+      
+      default:
+        assertionFailure("unexpected bootstrap: \(self.bootstrap)")
     }
   }
   deinit {
