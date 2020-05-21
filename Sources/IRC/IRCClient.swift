@@ -132,50 +132,34 @@ open class IRCClient : IRCClientMessageTarget {
     self.eventLoop = eventLoop
   
     // what a mess :-)
-    var defaultBootstrap : NIOClientTCPBootstrapProtocol {
-      return ClientBootstrap(group: eventLoop)
-    }
+    var overrideBootstrap : NIOClientTCPBootstrapProtocol?
     #if canImport(NIOTransportServices)
       #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         if #available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
           if options.eventLoopGroup is NIOTSEventLoopGroup {
-            self.bootstrap = NIOTSConnectionBootstrap(group: eventLoop)
-          }
-          else {
-            self.bootstrap = defaultBootstrap
+            overrideBootstrap = NIOTSConnectionBootstrap(group: eventLoop)
           }
         }
-        else {
-          self.bootstrap = defaultBootstrap
-        }
-      #else
-        self.bootstrap = defaultBootstrap
       #endif
-    #else
-      self.bootstrap = defaultBootstrap
     #endif
+    
+    self.bootstrap = overrideBootstrap ?? ClientBootstrap(group: eventLoop)
 
-    switch self.bootstrap {
-      case let bootstrap as ClientBootstrap:
-        _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
-        
-        _ = bootstrap.channelInitializer { [weak self] channel in
+    _ = bootstrap.channelOption(ChannelOptions.reuseAddr, value: 1)
+    
+    _ = bootstrap.channelInitializer { [weak self] channel in
+      return channel.pipeline
+        .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
+        .flatMap { [weak self] _ in
+          guard let me = self else {
+            let error = channel.eventLoop.makePromise(of: Void.self)
+            error.fail(Error.internalInconsistency)
+            return error.futureResult
+          }
           return channel.pipeline
-            .addHandler(IRCChannelHandler(), name: "de.zeezide.nio.irc.protocol")
-            .flatMap { [weak self] _ in
-              guard let me = self else {
-                let error = channel.eventLoop.makePromise(of: Void.self)
-                error.fail(Error.internalInconsistency)
-                return error.futureResult
-              }
-              return channel.pipeline
-                .addHandler(Handler(client: me),
-                            name: "de.zeezide.nio.irc.client")
-            }
+            .addHandler(Handler(client: me),
+                        name: "de.zeezide.nio.irc.client")
         }
-      
-      default:
-        assertionFailure("unexpected bootstrap: \(self.bootstrap)")
     }
   }
   deinit {
