@@ -179,11 +179,12 @@ open class IRCClient : IRCClientMessageTarget {
   var retryInfo = IRCRetryInfo()
   var channel : Channel? { @inline(__always) get { return state.channel } }
   
-  open func connect() {
-    guard eventLoop.inEventLoop else { return eventLoop.execute(self.connect) }
+  @discardableResult
+  open func connect() -> EventLoopFuture<Channel>? {
+    guard eventLoop.inEventLoop else { return eventLoop.flatSubmit { self.connect()! } }
     
-    guard state.canStartConnection else { return }
-    _ = _connect(host: options.hostname ?? "localhost", port: options.port)
+    guard state.canStartConnection else { return nil }
+    return _connect(host: options.hostname ?? "localhost", port: options.port)
   }
 
   private func _connect(host: String, port: Int) -> EventLoopFuture<Channel> {
