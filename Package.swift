@@ -4,7 +4,7 @@ import PackageDescription
 
 var packageDependencies : [ Package.Dependency ] = [
     .package(url:  "https://github.com/apple/swift-nio.git",
-             from: "2.17.0"),
+             from: "2.18.0"),
     .package(url:  "https://github.com/SwiftNIOExtras/swift-nio-irc.git",
              from: "0.7.1")
 ]
