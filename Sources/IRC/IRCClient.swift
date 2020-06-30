@@ -410,24 +410,6 @@ open class IRCClient : IRCClientMessageTarget {
       self.client.handlerCaughtError(error, in: context)
       _ = context.close(promise: nil)
     }
-    
-    #if swift(>=5)
-    #else // NIO 1 API shims
-      func channelActive(ctx context: ChannelHandlerContext) {
-        channelActive(context: context)
-      }
-      func channelInactive(ctx context: ChannelHandlerContext) {
-        channelInactive(context: context)
-      }
-    
-      func channelRead(ctx context: ChannelHandlerContext, data: NIOAny) {
-        channelRead(context: context, data: data)
-      }
-    
-      func errorCaught(ctx context: ChannelHandlerContext, error: Error) {
-        errorCaught(context: context, error: error)
-      }
-    #endif
   }
 
   
@@ -441,11 +423,7 @@ open class IRCClient : IRCClientMessageTarget {
   {
     // TBD: this looks a little more difficult than necessary.
     guard let channel = channel else {
-      #if swift(>=5)
-        promise?.fail(Error.stopped)
-      #else
-        promise?.fail(error: Error.stopped)
-      #endif
+      promise?.fail(Error.stopped)
       return
     }
     
@@ -457,11 +435,7 @@ open class IRCClient : IRCClientMessageTarget {
     
     let count = messages.count
     if count == 0 {
-      #if swift(>=5)
-        promise?.succeed(())
-      #else
-        promise?.succeed(result: ())
-      #endif
+      promise?.succeed(())
       return
     }
     if count == 1 {
@@ -475,17 +449,10 @@ open class IRCClient : IRCClientMessageTarget {
       return channel.flush()
     }
     
-    #if swift(>=5)
-      EventLoopFuture<Void>
-        .andAllSucceed(messages.map { channel.write($0) },
-                       on: promise.futureResult.eventLoop)
-        .cascade(to: promise)
-    #else
-      EventLoopFuture<Void>
-        .andAll(messages.map { channel.write($0) },
-                eventLoop: promise.futureResult.eventLoop)
-        .cascade(promise: promise)
-    #endif
+    EventLoopFuture<Void>
+      .andAllSucceed(messages.map { channel.write($0) },
+                     on: promise.futureResult.eventLoop)
+      .cascade(to: promise)
     channel.flush()
   }
 }
