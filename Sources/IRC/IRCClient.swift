@@ -2,7 +2,7 @@
 //
 // This source file is part of the swift-nio-irc open source project
 //
-// Copyright (c) 2018 ZeeZide GmbH. and the swift-nio-irc project authors
+// Copyright (c) 2018-2020 ZeeZide GmbH. and the swift-nio-irc project authors
 // Licensed under Apache License v2.0
 //
 // See LICENSE.txt for license information
@@ -132,15 +132,19 @@ open class IRCClient : IRCClientMessageTarget {
     self.eventLoop = eventLoop
   
     // what a mess :-)
-    var overrideBootstrap : NIOClientTCPBootstrapProtocol?
     #if canImport(NIOTransportServices)
       #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+        var overrideBootstrap : NIOClientTCPBootstrapProtocol?
         if #available(OSX 10.14, iOS 12.0, tvOS 12.0, watchOS 6.0, *) {
           if options.eventLoopGroup is NIOTSEventLoopGroup {
             overrideBootstrap = NIOTSConnectionBootstrap(group: eventLoop)
           }
         }
+      #else
+        let overrideBootstrap : NIOClientTCPBootstrapProtocol? = nil
       #endif
+    #else
+      let overrideBootstrap : NIOClientTCPBootstrapProtocol? = nil
     #endif
     
     self.bootstrap = overrideBootstrap ?? ClientBootstrap(group: eventLoop)
@@ -408,7 +412,7 @@ open class IRCClient : IRCClientMessageTarget {
     
     func errorCaught(context: ChannelHandlerContext, error: Error) {
       self.client.handlerCaughtError(error, in: context)
-      _ = context.close(promise: nil)
+      context.close(promise: nil)
     }
   }
 
