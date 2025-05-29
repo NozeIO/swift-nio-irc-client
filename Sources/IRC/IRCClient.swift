@@ -583,10 +583,7 @@ extension IRCClient : IRCDispatcher {
                       recipients : [ IRCMessageRecipient ],
                       message    : String) throws
   {
-    guard let sender = sender else { // should never happen
-      assertionFailure("got empty message sender!")
-      return
-    }
+    guard let sender = sender else { return }
     delegate?.client(self, message: message, from: sender, for: recipients)
   }
 
